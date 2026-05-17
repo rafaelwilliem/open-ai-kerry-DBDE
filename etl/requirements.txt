@@ -1,0 +1,5 @@
+apache-airflow==2.9.0
+influxdb-client==1.44.0
+mysql-connector-python==8.3.0
+pandas==2.2.2
+pyarrow==24.0.0

@@ -1,0 +1,14 @@
+{
+  "executionEnvironments": [
+    {
+      "root": "api",
+      "venv": ".venv",
+      "venvPath": "api"
+    },
+    {
+      "root": "consumer",
+      "venv": ".venv",
+      "venvPath": "consumer"
+    }
+  ]
+}

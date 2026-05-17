@@ -1,0 +1,16 @@
+# generator + consumer (kafka-python-ng: fork aktif, support Python 3.12+)
+kafka-python-ng==2.2.3
+
+# consumer + api (shared)
+influxdb-client==1.44.0
+mysql-connector-python==8.3.0
+
+# etl
+pandas==2.3.3
+pyarrow==24.0.0
+
+# api
+fastapi==0.111.0
+uvicorn==0.29.0
+
+# Note: apache-airflow runs inside Docker container, not installed locally

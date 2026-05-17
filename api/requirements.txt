@@ -1,0 +1,4 @@
+fastapi==0.111.0
+uvicorn==0.29.0
+influxdb-client==1.44.0
+mysql-connector-python==8.3.0

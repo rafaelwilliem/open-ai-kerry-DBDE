@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Data output
+data/processed/*.parquet
+data/processed/*.csv
+
+# Environment & secrets
+.env
+
+# Docker volumes (local only)
+mysql_data/
+influxdb_data/
+airflow_data/
+
+# Airflow
+airflow.db
+airflow.cfg
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
