@@ -109,7 +109,7 @@ services:
         limits:
           memory: 512m
 
-
+  airflow:
     image: apache/airflow:2.9.0
     depends_on:
       kafka:
