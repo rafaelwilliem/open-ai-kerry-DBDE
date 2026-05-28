@@ -45,8 +45,11 @@ def influx_client():
     return InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
 
 
-@app.get("/machines")
+@app.get("/machines", tags=["Machines"])
 def get_machines():
+    """
+    List all machines and their current operational status (from MySQL).
+    """
     conn = mysql_conn()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT id, name, type, location, status FROM machines")
@@ -56,8 +59,11 @@ def get_machines():
     return rows
 
 
-@app.get("/sensors/{machine_id}/latest")
+@app.get("/sensors/{machine_id}/latest", tags=["Sensors"])
 def get_latest(machine_id: str):
+    """
+    Get the single latest sensor reading for a specific machine (from InfluxDB).
+    """
     client = influx_client()
     query = f"""
     from(bucket: "{INFLUX_BUCKET}")
@@ -78,8 +84,11 @@ def get_latest(machine_id: str):
     return records[-1]
 
 
-@app.get("/sensors/{machine_id}/history")
+@app.get("/sensors/{machine_id}/history", tags=["Sensors"])
 def get_history(machine_id: str, hours: int = Query(default=24, ge=1, le=168)):
+    """
+    Get historical sensor readings for a specific machine over a given number of hours (from InfluxDB).
+    """
     client = influx_client()
     query = f"""
     from(bucket: "{INFLUX_BUCKET}")
@@ -99,8 +108,11 @@ def get_history(machine_id: str, hours: int = Query(default=24, ge=1, le=168)):
 DATA_DIR = "/app/data/processed"
 
 
-@app.get("/data/files")
+@app.get("/data/files", tags=["ML Datasets (Parquet)"])
 def list_files():
+    """
+    List all available aggregated Parquet files in the processed data directory.
+    """
     if not os.path.exists(DATA_DIR):
         return []
     files = []
@@ -117,8 +129,11 @@ def list_files():
     return files
 
 
-@app.get("/data/files/{filename}")
+@app.get("/data/files/{filename}", tags=["ML Datasets (Parquet)"])
 def download_file(filename: str):
+    """
+    Download a specific Parquet dataset by file name.
+    """
     # Basic path traversal prevention
     clean_filename = os.path.basename(filename)
     filepath = os.path.join(DATA_DIR, clean_filename)
@@ -127,8 +142,11 @@ def download_file(filename: str):
     return FileResponse(filepath, media_type="application/octet-stream", filename=clean_filename)
 
 
-@app.get("/data/latest")
+@app.get("/data/latest", tags=["ML Datasets (Parquet)"])
 def download_latest():
+    """
+    Download the most recently generated Parquet dataset from the ETL pipeline.
+    """
     if not os.path.exists(DATA_DIR):
         raise HTTPException(status_code=404, detail="No processed files found")
     files = glob.glob(os.path.join(DATA_DIR, "*.parquet"))
