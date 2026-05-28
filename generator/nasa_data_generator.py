@@ -2,7 +2,26 @@ import argparse
 import json
 import os
 import time
+import selectors
 from datetime import datetime, timezone
+
+# Monkeypatch selectors to avoid ValueError: Invalid file descriptor: -1 on Windows + Python 3.12+
+def patch_selector(cls):
+    if hasattr(cls, 'unregister'):
+        orig_unreg = cls.unregister
+        def safe_unreg(self, fileobj):
+            try:
+                return orig_unreg(self, fileobj)
+            except (ValueError, KeyError, AttributeError):
+                return None
+        cls.unregister = safe_unreg
+
+patch_selector(selectors.BaseSelector)
+if hasattr(selectors, '_BaseSelectorImpl'):
+    patch_selector(selectors._BaseSelectorImpl)
+if hasattr(selectors, 'SelectSelector'):
+    patch_selector(selectors.SelectSelector)
+
 import mysql.connector
 from kafka import KafkaProducer
 
