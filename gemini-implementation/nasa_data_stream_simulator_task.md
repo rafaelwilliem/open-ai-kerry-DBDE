@@ -8,3 +8,4 @@
 - [x] Verify execution by running the consumer and generator together.
 - [x] Fix Airflow ETL transform task failure (KeyError: 'vibration_mean').
 - [x] Verify successful execution of Airflow sensor_etl DAG run and Parquet output generation.
+- [x] Create FastAPI endpoints for AI Engineers to easily list and download Parquet datasets.

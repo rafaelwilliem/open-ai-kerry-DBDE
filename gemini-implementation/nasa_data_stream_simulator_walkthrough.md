@@ -49,3 +49,30 @@ This produces a clean column multi-index that correctly flattens into `'vibratio
 After updating the DAG definition, the Airflow scheduler executed the DAG successfully:
 * **All tasks** (`extract_influxdb`, `extract_mysql`, `transform`, `load_parquet`) completed with status **Success** (Green).
 * The transformed data was written to a Parquet file on the host at [sensor_2026-05-28_06.parquet](file:///C:/RAPAEL/PERSONAL_PROJECT/OPEN_AI_KERRY-GROUP/code/data/processed/sensor_2026-05-28_06.parquet).
+
+## Exposing Processed Data to AI Engineers
+
+To provide backend access to the AI Engineers for ML modelling:
+1. **Docker-Compose Mount**: Mounted the host's `./data/processed` directory to `/app/data/processed` inside the API container in [docker-compose.yml](file:///C:/RAPAEL/PERSONAL_PROJECT/OPEN_AI_KERRY-GROUP/code/docker-compose.yml).
+2. **FastAPI Endpoints**: Implemented three endpoints in [main.py](file:///C:/RAPAEL/PERSONAL_PROJECT/OPEN_AI_KERRY-GROUP/code/api/main.py):
+   * `GET /data/files`: Lists all processed Parquet datasets with names, sizes, and last modified timestamps.
+   * `GET /data/files/{filename}`: Downloads a specific Parquet dataset.
+   * `GET /data/latest`: Downloads the latest generated Parquet dataset automatically.
+
+### Verification of API Access:
+An HTTP request to `http://localhost:8000/data/files` returns:
+```json
+[
+  {
+    "filename": "sensor_2026-05-28_08.parquet",
+    "size_bytes": 22281,
+    "modified_at": "2026-05-28T08:01:13.696624"
+  },
+  ...
+]
+```
+The AI Engineer can now easily read the dataset using Pandas in their notebooks with a single line:
+```python
+import pandas as pd
+df = pd.read_parquet("http://localhost:8000/data/latest")
+```
