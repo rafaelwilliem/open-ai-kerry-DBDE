@@ -74,7 +74,8 @@ services:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 15s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 60s
     deploy:
       resources:
         limits:
@@ -102,7 +103,7 @@ services:
       - ./api:/app
     working_dir: /app
     command: >
-      bash -c "pip install -r requirements.txt -q &&
+      bash -c "pip install --no-cache-dir -r requirements.txt -q &&
                uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     deploy:
       resources:
@@ -119,11 +120,11 @@ services:
       mysql:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db?timeout=60
       AIRFLOW__WEBSERVER__SECRET_KEY: kerry-airflow-secret-2024
       # Pass through env vars for DAG use
       INFLUXDB_URL: http://influxdb:8086
@@ -139,9 +140,11 @@ services:
       - ./data/processed:/opt/airflow/data/processed
       - airflow_data:/opt/airflow
     command: >
-      bash -c "airflow db init &&
+      bash -c "pip install --no-cache-dir influxdb-client mysql-connector-python -q &&
+               rm -f /opt/airflow/airflow-webserver.pid &&
+               airflow db migrate &&
                airflow users create --username admin --password admin --firstname Kerry --lastname Admin --role Admin --email admin@kerry.com &&
-               airflow webserver & airflow scheduler"
+               airflow webserver & (sleep 15 && airflow scheduler)"
     deploy:
       resources:
         limits:
