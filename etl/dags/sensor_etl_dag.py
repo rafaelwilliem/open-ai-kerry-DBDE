@@ -89,8 +89,7 @@ def transform(**ctx):
     # 1. Aggregate per minute per machine
     sensor_df = sensor_df.set_index("timestamp").sort_index()
     agg = (
-        sensor_df.groupby("machine_id")[sensor_fields]
-        .resample("1min")
+        sensor_df.groupby(["machine_id", pd.Grouper(freq="1min")])[sensor_fields]
         .agg(["mean", "max", "min"])
     )
     agg.columns = ["_".join(c) for c in agg.columns]
