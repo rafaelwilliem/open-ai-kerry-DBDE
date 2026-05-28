@@ -5,11 +5,14 @@ Endpoints:
   GET /sensors/{machine_id}/latest           → latest sensor reading (InfluxDB)
   GET /sensors/{machine_id}/history?hours=24 → historical readings (InfluxDB)
 """
+import glob
 import os
+from datetime import datetime
 
 import mysql.connector
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from influxdb_client import InfluxDBClient
 
 INFLUX_URL    = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
@@ -91,3 +94,48 @@ def get_history(machine_id: str, hours: int = Query(default=24, ge=1, le=168)):
         {**r.values, "timestamp": str(r.values.get("_time"))}
         for table in tables for r in table.records
     ]
+
+
+DATA_DIR = "/app/data/processed"
+
+
+@app.get("/data/files")
+def list_files():
+    if not os.path.exists(DATA_DIR):
+        return []
+    files = []
+    for filepath in glob.glob(os.path.join(DATA_DIR, "*.parquet")):
+        stat = os.stat(filepath)
+        filename = os.path.basename(filepath)
+        files.append({
+            "filename": filename,
+            "size_bytes": stat.st_size,
+            "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat()
+        })
+    # Sort files by modified time descending
+    files.sort(key=lambda x: x["modified_at"], reverse=True)
+    return files
+
+
+@app.get("/data/files/{filename}")
+def download_file(filename: str):
+    # Basic path traversal prevention
+    clean_filename = os.path.basename(filename)
+    filepath = os.path.join(DATA_DIR, clean_filename)
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(filepath, media_type="application/octet-stream", filename=clean_filename)
+
+
+@app.get("/data/latest")
+def download_latest():
+    if not os.path.exists(DATA_DIR):
+        raise HTTPException(status_code=404, detail="No processed files found")
+    files = glob.glob(os.path.join(DATA_DIR, "*.parquet"))
+    if not files:
+        raise HTTPException(status_code=404, detail="No processed files found")
+    # Get latest modified file
+    latest_file = max(files, key=os.path.getmtime)
+    filename = os.path.basename(latest_file)
+    return FileResponse(latest_file, media_type="application/octet-stream", filename=filename)
+

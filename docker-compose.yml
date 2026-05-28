@@ -101,6 +101,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - ./api:/app
+      - ./data/processed:/app/data/processed
     working_dir: /app
     command: >
       bash -c "pip install --no-cache-dir -r requirements.txt -q &&
