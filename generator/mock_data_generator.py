@@ -7,6 +7,7 @@ import os
 import random
 import time
 from datetime import datetime, timezone
+from typing import Any
 
 from kafka import KafkaProducer
 
@@ -64,7 +65,7 @@ def generate_reading(machine_id: str) -> dict:
     profile = MACHINE_PROFILES[machine_id]
     is_anomaly = random.random() < 0.10  # 10% chance
 
-    reading = {"machine_id": machine_id, "timestamp": datetime.now(timezone.utc).isoformat()}
+    reading: dict[str, Any] = {"machine_id": machine_id, "timestamp": datetime.now(timezone.utc).isoformat()}
     for param, (lo, hi) in profile.items():
         value = random.uniform(lo, hi)
         if is_anomaly:

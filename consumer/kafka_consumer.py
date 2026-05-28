@@ -45,7 +45,7 @@ def write_to_influx(write_api, msg: dict):
         if field in msg:
             point = point.field(field, float(msg[field]))
     point = point.field("anomaly_flag", int(msg.get("anomaly_flag", False)))
-    point = point.time(msg["timestamp"], WritePrecision.NANOSECONDS)
+    point = point.time(msg["timestamp"], WritePrecision.NS)
     write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=point)
 
 
