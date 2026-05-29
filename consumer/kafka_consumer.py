@@ -27,12 +27,19 @@ if hasattr(selectors, 'SelectSelector'):
     patch_selector(selectors.SelectSelector)
 
 import mysql.connector
-from influxdb_client import InfluxDBClient, Point, WritePrecision
-from influxdb_client.client.write_api import SYNCHRONOUS
+from influxdb_client import InfluxDBClient, Point, WritePrecision, WriteOptions
 from kafka import KafkaConsumer
 from urllib3.util import Retry
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
+if KAFKA_BROKER == "kafka:29092" and not os.path.exists('/.dockerenv'):
+    KAFKA_BROKER = "localhost:9092"
 TOPIC        = os.getenv("KAFKA_TOPIC", "sensor.raw")
 
 INFLUX_URL    = os.getenv("INFLUXDB_URL", "http://localhost:8086")
@@ -57,7 +64,14 @@ def get_influx_write_api():
         raise_on_status=False
     )
     client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG, retries=retries)
-    return client, client.write_api(write_options=SYNCHRONOUS)
+    write_options = WriteOptions(
+        batch_size=50,
+        flush_interval=500,
+        jitter_interval=0,
+        retry_interval=5000,
+        max_retries=5
+    )
+    return client, client.write_api(write_options=write_options)
 
 
 def get_mysql_conn():
@@ -106,6 +120,7 @@ def main():
     influx_client = None
     write_api = None
     mysql_conn = None
+    last_machine_states = {}
     
     try:
         influx_client, write_api = get_influx_write_api()
@@ -119,10 +134,12 @@ def main():
 
     print(f"[consumer] Listening on '{TOPIC}' from {KAFKA_BROKER}")
 
+    msg_count = 0
     try:
         for kafka_msg in consumer:
             try:
                 msg = kafka_msg.value
+                msg_count += 1
                 
                 # Write to InfluxDB with reconnection support
                 try:
@@ -146,36 +163,51 @@ def main():
                         print(f"[consumer] InfluxDB retry failed: {retry_err}")
                         write_api = None
 
-                # Write anomaly to MySQL with reconnection support
-                if msg.get("anomaly_flag"):
-                    try:
-                        # If initial connection failed or got closed, try to connect/reconnect
-                        if not mysql_conn or not mysql_conn.is_connected():
-                            mysql_conn = get_mysql_conn()
-                        write_anomaly_to_mysql(mysql_conn, msg)
-                    except Exception as e:
-                        print(f"[consumer] MySQL write failed: {e}. Reconnecting and retrying...")
+                # Write anomaly to MySQL with reconnection support (only on state transition)
+                machine_id = msg["machine_id"]
+                is_anomaly = bool(msg.get("anomaly_flag"))
+                prev_anomaly = last_machine_states.get(machine_id, False)
+
+                if is_anomaly:
+                    if not prev_anomaly:
                         try:
-                            if mysql_conn:
-                                mysql_conn.close()
-                        except Exception:
-                            pass
-                        mysql_conn = None
-                        time.sleep(1)
-                        try:
-                            mysql_conn = get_mysql_conn()
+                            # If initial connection failed or got closed, try to connect/reconnect
+                            if not mysql_conn or not mysql_conn.is_connected():
+                                mysql_conn = get_mysql_conn()
                             write_anomaly_to_mysql(mysql_conn, msg)
-                        except Exception as retry_err:
-                            print(f"[consumer] MySQL retry failed: {retry_err}")
+                            last_machine_states[machine_id] = True
+                            print(f"[consumer] [WARNING] ANOMALY logged to MySQL - {machine_id}")
+                        except Exception as e:
+                            print(f"[consumer] MySQL write failed: {e}. Reconnecting and retrying...")
+                            try:
+                                if mysql_conn:
+                                    mysql_conn.close()
+                            except Exception:
+                                pass
                             mysql_conn = None
-                    
-                    print(f"[consumer] ⚠ ANOMALY logged to MySQL — {msg['machine_id']}")
+                            time.sleep(1)
+                            try:
+                                mysql_conn = get_mysql_conn()
+                                write_anomaly_to_mysql(mysql_conn, msg)
+                                last_machine_states[machine_id] = True
+                                print(f"[consumer] [WARNING] ANOMALY logged to MySQL - {machine_id}")
+                            except Exception as retry_err:
+                                print(f"[consumer] MySQL retry failed: {retry_err}")
+                                mysql_conn = None
                 else:
-                    print(f"[consumer] ✓ {msg['machine_id']} → InfluxDB")
+                    last_machine_states[machine_id] = False
+
+                if msg_count % 100 == 0:
+                    print(f"[consumer] [OK] Processed {msg_count} messages | Latest: {machine_id} -> InfluxDB")
             except Exception as msg_err:
                 print(f"[consumer] Error processing message: {msg_err}")
                 time.sleep(2)
     finally:
+        if write_api:
+            try:
+                write_api.close()
+            except Exception:
+                pass
         if influx_client:
             try:
                 influx_client.close()

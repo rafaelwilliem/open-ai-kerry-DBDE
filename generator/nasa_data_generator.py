@@ -25,8 +25,15 @@ if hasattr(selectors, 'SelectSelector'):
 import mysql.connector
 from kafka import KafkaProducer
 
-# Default configs
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
+if KAFKA_BROKER == "kafka:29092" and not os.path.exists('/.dockerenv'):
+    KAFKA_BROKER = "localhost:9092"
 TOPIC        = os.getenv("KAFKA_TOPIC", "sensor.raw")
 
 # MySQL configs
