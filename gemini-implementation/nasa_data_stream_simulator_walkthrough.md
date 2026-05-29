@@ -76,3 +76,11 @@ The AI Engineer can now easily read the dataset using Pandas in their notebooks 
 import pandas as pd
 df = pd.read_parquet("http://localhost:8000/data/latest")
 ```
+
+## Troubleshooting & Resetting to Start Fresh
+
+During validation, the following issues were resolved to allow a 100% clean, real-time restreaming verification:
+1. **WSL2 / Docker Desktop Clock Drift**: Re-synchronized the Docker container clock by restarting the VM (`wsl --shutdown`), which aligned InfluxDB's UTC clock with the host Windows clock, resolving issues where today's data fell outside of the query time ranges.
+2. **Duplicate Orphan Python Processes**: Terminated multiple duplicate background processes of `nasa_data_generator.py` and `kafka_consumer.py` running in the background of the Windows host to stop continuous data streaming.
+3. **Kafka Broker Queue Purge**: Re-created the Kafka container cleanly (`docker-compose stop kafka`, `docker-compose rm -f kafka`, `docker-compose up -d kafka`) to delete all queued historical message logs.
+4. **Database Wipe**: Executed a comprehensive database cleanup to wipe the InfluxDB `sensor_data` bucket and truncate MySQL's `shift_logs` table.

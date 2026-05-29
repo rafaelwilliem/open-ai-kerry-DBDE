@@ -9,3 +9,5 @@
 - [x] Fix Airflow ETL transform task failure (KeyError: 'vibration_mean').
 - [x] Verify successful execution of Airflow sensor_etl DAG run and Parquet output generation.
 - [x] Create FastAPI endpoints for AI Engineers to easily list and download Parquet datasets.
+- [x] Terminate duplicate background Windows processes and sync WSL/Docker clocks.
+- [x] Purge Kafka queue backlog and wipe InfluxDB/MySQL to support clean data restreaming.
